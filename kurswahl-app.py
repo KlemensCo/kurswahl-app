@@ -257,9 +257,6 @@ def waehle_grundkurse():
                 speichere_zustand()
                 st.session_state.kurswahl_abgeschlossen = True
                 st.success("Kurswahl abgeschlossen. Sie haben die maximale Stundenzahl erreicht.")
-                st.session_state.gewaehlteGKs_mit_stunden[gk] = f"{alle_faecher[gk]}h"
-                st.session_state.gesamtstunden += alle_faecher[gk]
-                st.session_state.möglicheGKs.remove(gk)
                 st.rerun()
 
 

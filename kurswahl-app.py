@@ -10,7 +10,7 @@ if 'gewaehlteGKs' not in st.session_state:
 if 'möglicheLKs' not in st.session_state:
     st.session_state.möglicheLKs = [
         "Biologie", "Deutsch", "Geschichte", "Informatik", "Englisch",
-        "Geographie", "Mathematik", "Politik", "Physik",
+        "Geographie", "Mathematik", "Politik", "Physik", "Kunst", "Musik"
     ]
 
 if 'möglicheGKs' not in st.session_state:
@@ -125,31 +125,21 @@ def waehle_vorherige_faecher():
     if st.button("Weiter zu den Leistungskursen"):
         speichere_zustand()  # Zustand vor Änderungen speichern
         
+
+        #Sprachen je nach Angebot hinzufügen
         if Fremdsprache == "Keine":
             st.session_state.gewaehlteGKs.append("Spanisch für Neueinsteiger")
             st.session_state.gewaehlteGKs_mit_stunden["Spanisch für Neueinsteiger"] = "4h"
             st.session_state.gesamtstunden += 4
-        if Fremdsprache == "Französisch":
-            st.session_state.möglicheLKs.append("Französisch")
-            st.session_state.möglicheGKs.append("Französisch")
-            st.session_state.pflicht_LK.append("Französisch")
-        if Fremdsprache == "Latein":
-            st.session_state.möglicheLKs.append("Latein")
-            st.session_state.möglicheGKs.append("Latein")
-            st.session_state.pflicht_LK.append("Latein")
-        if Fremdsprache == "Spanisch":
+        elif Fremdsprache in ("Französisch", "Latein"):
+            st.session_state.möglicheLKs.append(Fremdsprache)
+            st.session_state.möglicheGKs.append(Fremdsprache)
+            st.session_state.pflicht_LK.append(Fremdsprache)
+        elif Fremdsprache == "Spanisch":
             st.session_state.möglicheGKs.append("Spanisch")
 
-        if kuenstlerisches_fach == "DSP":        
-            st.session_state.pflicht_GK.append("DSP")
-        if kuenstlerisches_fach == "Kunst":
-            st.session_state.möglicheLKs.append("Kunst")
-            st.session_state.möglicheGKs.append("Kunst")
-            st.session_state.pflicht_GK.append("Kunst")
-        if kuenstlerisches_fach == "Musik":
-            st.session_state.möglicheLKs.append("Musik")
-            st.session_state.möglicheGKs.append("Musik")
-            st.session_state.pflicht_GK.append("Musik")
+        # Künstlerisches Fach als Pflichtfach hinzufügen
+        st.session_state.pflicht_GK.append(kuenstlerisches_fach)
 
         st.session_state.vorherige_faecher_abgeschlossen = True
         st.rerun()
@@ -282,6 +272,79 @@ def uebersicht():
         st.write("**⏱ Wochenstunden**")
         st.metric(label="", value=f"{st.session_state.get('gesamtstunden', 0)}")
 
+    
+def pruefe_kurswahl():
+    # Initialisiere Prüfergebnisse
+    pruefungen = {
+        'lk_anzahl': False,
+        'pflicht_lk': False,
+        'lk_kombinationen': False,
+        'stunden_bereich': False,
+        'verpflichtende_faecher': False,
+        'keine_dopplungen': False
+    }
+
+    # Liste der erlaubten LKs
+    erlaubte_lks = [
+        "Biologie", "Deutsch", "Geschichte", "Informatik", 
+        "Englisch", "Geographie", "Mathematik", "Politik", 
+        "Kunst", "Physik", "Musik", "Französisch", "Latein"
+    ]
+
+    # 1. Prüfung: Anzahl der Leistungskurse
+    pruefungen['lk_anzahl'] = len(st.session_state.gewaehlteLKs) == 3
+
+    # 2. Prüfung: Pflicht-LK und LK-Kombinationen
+    if pruefungen['lk_anzahl']:
+        # Mindestens ein LK aus Pflicht-LKs
+        pruefungen['pflicht_lk'] = any(lk in st.session_state.pflicht_LK for lk in st.session_state.gewaehlteLKs)
+        
+        # Spezielle Bedingung für Biologie/Physik
+        if st.session_state.gewaehlteLKs[0] in ["Biologie", "Physik"]:
+            pruefungen['lk_kombinationen'] = st.session_state.gewaehlteLKs[1] in lk1phybio
+        else:
+            pruefungen['lk_kombinationen'] = True
+
+    # 3. Prüfung: Keine Dopplungen
+    pruefungen['keine_dopplungen'] = len(set(st.session_state.gewaehlteLKs)) == 3
+
+    # 4. Prüfung: Stundenzahl
+    pruefungen['stunden_bereich'] = 34 <= st.session_state.gesamtstunden <= 38
+
+    # 5. Prüfung: Verpflichtende Fächer
+    gewaehlte_faecher = set(st.session_state.gewaehlteLKs + st.session_state.gewaehlteGKs)
+    verpflichtende_faecher = set(st.session_state.pflicht_GK)
+    
+    pruefungen['verpflichtende_faecher'] = verpflichtende_faecher.issubset(gewaehlte_faecher)
+
+
+    # Visualisierung
+     
+    def pruef_symbol(status):
+        return "✅" if status else "❌"
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.write(f"{pruef_symbol(pruefungen['lk_anzahl'])} 3 Leistungskurse")
+        st.write(f"{pruef_symbol(pruefungen['pflicht_lk'])} Pflicht-LK enthalten")
+        st.write(f"{pruef_symbol(pruefungen['lk_kombinationen'])} LK-Kombinationsregel")
+    
+    with col2:
+        st.write(f"{pruef_symbol(pruefungen['keine_dopplungen'])} Keine Dopplungen")
+        st.write(f"{pruef_symbol(pruefungen['stunden_bereich'])} Stundenzahl (34-38h)")
+        st.write(f"{pruef_symbol(pruefungen['verpflichtende_faecher'])} Alle Pflichtfächer")
+    
+    # Optionale Fehlermeldungen
+    if not all(pruefungen.values()):
+        st.warning("Es gibt noch Probleme mit Ihrer Kurswahl.")
+    else:
+        st.success("Ihre Kurswahl ist vollständig und gültig!")
+    
+    return all(pruefungen.values())
+
+
+
 # ------------------------------------------ Streamlit Layout ---------------------------------------
 
 st.title("Kurswahl für die Oberstufe")
@@ -326,3 +389,10 @@ st.divider()
 st.subheader("Kurswahl-Übersicht")
 
 uebersicht()
+
+
+# ------------------------------------------ Kurswahl-Validierung -----------------------------------------
+if st.session_state.kurswahl_abgeschlossen:
+    st.divider()
+    st.subheader("Kurswahl-Validierung")
+    pruefe_kurswahl()

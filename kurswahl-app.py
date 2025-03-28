@@ -45,6 +45,9 @@ if 'gesamtstunden' not in st.session_state:
 if 'vorherige_faecher_abgeschlossen' not in st.session_state:
     st.session_state.vorherige_faecher_abgeschlossen = False
 
+if 'kurswahl_abgeschlossen' not in st.session_state:
+    st.session_state.kurswahl_abgeschlossen = False
+
 if 'gewaehlteGKs_mit_stunden' not in st.session_state:
     st.session_state.gewaehlteGKs_mit_stunden = {}
 
@@ -141,7 +144,7 @@ def waehle_vorherige_faecher():
 
 def waehle_leistungskurse():
     if len(st.session_state.gewaehlteLKs) == 0:
-        st.info("Wählen Sie Ihre Leistungskurse aus. Sie müssen drei Leistungskurse belegen.")
+        st.info("Der erste Leistungskurs muss eines der Pflichtfächer sein.")
         lk1 = st.selectbox("Leistungskurs 1", st.session_state.pflicht_LK)
 
         if st.button("Bestätigen", key="button_lk1"):
@@ -159,9 +162,10 @@ def waehle_leistungskurse():
     
     elif len(st.session_state.gewaehlteLKs) == 1:
         if st.session_state.gewaehlteLKs[0] in ["Biologie", "Physik"]:
-            st.info("Da Sie Biologie oder Physik als ersten Leistungskurs gewählt haben:")
+            st.info("Da Sie Biologie oder Physik als ersten LK gewählt haben muss Ihr zweiter LK einen der folgenden beinhalten:")
             lk2 = st.selectbox("Leistungskurs 2", lk1phybio)
         else:
+            st.info("Wählen Sie Ihren zweiten Leistungskurs aus.")
             lk2 = st.selectbox("Leistungskurs 2", st.session_state.möglicheLKs)
 
         if st.button("Bestätigen", key="button_lk2"):
@@ -195,7 +199,7 @@ def waehle_leistungskurse():
             st.rerun()
 
 def waehle_grundkurse():
-    st.info("Wählen Sie Ihre Grundkurse aus. Mindestens 34 Wochenstunden benötigt.")
+    st.info("Wählen Sie Ihre Grundkurse aus. Sie können zwischen 34 und 38 Wochenstunden belegen.")
     
     for sub in st.session_state.pflicht_GK:
         if sub not in st.session_state.gewaehlteLKs and sub not in st.session_state.gewaehlteGKs:
@@ -210,20 +214,34 @@ def waehle_grundkurse():
             st.session_state.möglicheGKs.remove(sub)
 
     gk = st.selectbox("Grundkurse", st.session_state.möglicheGKs)
-    if st.button("Bestätigen", key="button_gk"):
-        if st.session_state.gesamtstunden + alle_faecher[gk] <= 38:
-            speichere_zustand()
-            st.session_state.gewaehlteGKs.append(gk)
-            st.session_state.gewaehlteGKs_mit_stunden[gk] = f"{alle_faecher[gk]}h"
-            st.session_state.gesamtstunden += alle_faecher[gk]
-            st.session_state.möglicheGKs.remove(gk)
-            st.rerun()
-        else:
-            if gk == "Spanisch für Neueinsteiger" and st.session_state.gesamtstunden + 4 == 39:
+    col1, col2 = st.columns([3.4, 1])  # Adjust column widths to push the right button further to the right
+    with col1:
+        if st.button("Bestätigen", key="button_gk"):
+            if st.session_state.gesamtstunden + alle_faecher[gk] <= 38:
+                speichere_zustand()
+                st.session_state.gewaehlteGKs.append(gk)
+                st.session_state.gewaehlteGKs_mit_stunden[gk] = f"{alle_faecher[gk]}h"
+                st.session_state.gesamtstunden += alle_faecher[gk]
                 st.session_state.möglicheGKs.remove(gk)
-                st.error("Maximale Stundenzahl (38h) überschritten.")
                 st.rerun()
-            st.error("Maximale Anzahl an Grundkursen erreicht.")
+            else:
+                if gk == "Spanisch für Neueinsteiger" and st.session_state.gesamtstunden + 4 == 39:
+                    st.session_state.möglicheGKs.remove(gk)
+                    st.error("Maximale Stundenzahl (38h) überschritten.")
+                    st.rerun()
+                st.error("Maximale Anzahl an Grundkursen erreicht.")
+    
+    with col2:
+        if st.session_state.gesamtstunden >= 34:
+            if st.button("Kurswahl beenden", key="button_beenden"):
+                speichere_zustand()
+                st.session_state.kurswahl_abgeschlossen = True
+                st.success("Kurswahl abgeschlossen. Sie haben die maximale Stundenzahl erreicht.")
+                st.session_state.gewaehlteGKs_mit_stunden[gk] = f"{alle_faecher[gk]}h"
+                st.session_state.gesamtstunden += alle_faecher[gk]
+                st.session_state.möglicheGKs.remove(gk)
+                st.rerun()
+
 
 def uebersicht():
     col_lk, col_gk, col_h = st.columns(3)
@@ -272,7 +290,7 @@ else:
         waehle_leistungskurse()
 
     # Grundkurse auswählen
-    if len(st.session_state.gewaehlteLKs) == 3:
+    if len(st.session_state.gewaehlteLKs) == 3 and not st.session_state.kurswahl_abgeschlossen:
         st.subheader("Grundkurse auswählen")
         waehle_grundkurse()
 
